@@ -4,6 +4,8 @@ from pydub import AudioSegment
 import numpy as np
 import math
 
+#https://www.youtube.com/watch?v=DNKaIe3VTy4
+
 def sinewave(frequency, second, sample_rate,amplitude):
     return np.array([ (amplitude * math.sin(frequency * 2 * math.pi *(x / sample_rate))) for x in range(0,second * sample_rate)])
 def decibel(x):
@@ -12,7 +14,7 @@ def decibel(x):
 
 
 
-violinAudio = AudioSegment.from_file("Violin.mp3")
+violinAudio = AudioSegment.from_file("violin.mp3")
 violinArray = np.array(violinAudio.get_array_of_samples())
 violinArray = violinArray.reshape(-1,violinAudio.channels).mean(axis=1)
 violinArray = violinArray.astype(np.float32)
@@ -37,10 +39,10 @@ freqMagDict = {}
 
 
 for tup in freqMagTuples:
-    if math.ceil(tup[0]) in freqMagDict:
-        freqMagDict[math.ceil(tup[0])] += tup[1]
+    if round(tup[0],1) in freqMagDict:
+        freqMagDict[round(tup[0],1)] += tup[1]
     else :
-        freqMagDict[math.ceil(tup[0])] = tup[1]
+        freqMagDict[round(tup[0],1)] = tup[1]
 
 
 freqMagDict = dict(sorted(freqMagDict.items(),key = lambda item : item[1],reverse=True))
@@ -48,21 +50,27 @@ freqMagDict = dict(sorted(freqMagDict.items(),key = lambda item : item[1],revers
 amp_violin = []
 freq_violin = []
 
+
+
 for idx,key in enumerate(freqMagDict):
-    if idx >= 4:
+    if(idx >= 100):
         break
     amp_violin.append(freqMagDict[key])
     freq_violin.append(key)
 
 amp_violin /= amp_violin[0]
 
-print(amp_violin)
-print(freq_violin)
-    
-note = sum(sinewave(frequency=freq,second=5,amplitude=amp,sample_rate=22050) for freq,amp in zip(freq_violin,amp_violin))
+note = sum(sinewave(frequency=freq,second=1,amplitude=amp,sample_rate=44100) for freq,amp in zip(freq_violin,amp_violin))
 
 sounddevice.play(note)
 sounddevice.wait()
+
+if(True):
+    with open("mag.csv",'w') as f:
+        magLargest = list(freqMagDict.values())[0]
+        for idx,key in enumerate(freqMagDict):
+            f.write(f"{key} {freqMagDict[key]/magLargest}\n")
+
 
 
 if(False):
