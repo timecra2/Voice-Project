@@ -32,12 +32,37 @@ plt.plot(violinFreqNyq,violinMagNyq)
 plt.show()
 
 
+freqMagTuples = [(i,j) for i,j in zip(violinFreqNyq,violinMagNyq)]
+freqMagDict = {}
 
 
+for tup in freqMagTuples:
+    if math.ceil(tup[0]) in freqMagDict:
+        freqMagDict[math.ceil(tup[0])] += tup[1]
+    else :
+        freqMagDict[math.ceil(tup[0])] = tup[1]
 
 
+freqMagDict = dict(sorted(freqMagDict.items(),key = lambda item : item[1],reverse=True))
 
+amp_violin = []
+freq_violin = []
 
+for idx,key in enumerate(freqMagDict):
+    if idx >= 4:
+        break
+    amp_violin.append(freqMagDict[key])
+    freq_violin.append(key)
+
+amp_violin /= amp_violin[0]
+
+print(amp_violin)
+print(freq_violin)
+    
+note = sum(sinewave(frequency=freq,second=5,amplitude=amp,sample_rate=22050) for freq,amp in zip(freq_violin,amp_violin))
+
+sounddevice.play(note)
+sounddevice.wait()
 
 
 if(False):
