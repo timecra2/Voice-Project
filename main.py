@@ -17,7 +17,8 @@ def sinewave(frequency, second, sample_rate,amplitude):
 def decibel(x):
     return pow(10,x/10)
 
-SEMITONE = 440 * (2 ** (1/12))
+SEMITONE = (2 ** (1/12))
+A0 = 27.5
 
 #(amplitude,t) -> (amplitude,f)
 class Instrument:
@@ -34,21 +35,23 @@ class Instrument:
         instFreqNyq = instFreq[:len(instFreq)//2]
         instMagNyq = instMag[:len(instMag)//2]
         instMagNyq /= instMagNyq.max()
-        
-       # plt.plot(instFreqNyq,instMagNyq)
-        #plt.show()  
+         
+        plt.plot(instFreqNyq,instMagNyq)
 
         self.framerate = instAudio.frame_rate
         self.instDict = Instrument.createFreqMagDict(instFreqNyq,instMagNyq,fineness)
+        self.fineness = fineness
 
     @staticmethod
     def createFreqMagDict(freqs,mags,fineness):
-        bins = np.arange(0,freqs.max() + fineness,fineness)
-        binsIndice = np.digitize(freqs,bins)-1
-        binsMagnitudes = np.bincount(binsIndice, weights=mags, minlength=len(bins))
-        binsFreqency = bins[:len(binsMagnitudes)]
-        
-        return np.column_stack((binsFreqency,binsMagnitudes))
+
+        nBins = int(math.log(freqs.max()/A0,fineness))
+        bins = [A0 * fineness**(i) for i in range(0,nBins)]
+        indices = np.digitize(x=freqs,bins=bins)   
+        binsMagnitudes = np.zeros(nBins) 
+        np.add.at(binsMagnitudes,indices-1,mags)
+        binsMagnitudes /= binsMagnitudes.max()
+        return np.column_stack((bins,binsMagnitudes))
              
 
     def instMap(self,precision):
@@ -56,18 +59,25 @@ class Instrument:
         sorted_dict = self.instDict[sorted_indices]
         return sorted_dict[:precision]
 
-    #deprecated
     def writeChart(self,filename):
         with open(filename,'w') as f:
             magMax = max(self.instDict[:,1])
             for idx,tup  in enumerate(self.instDict):
                 f.write(f"{tup[0]} {tup[1]/magMax}\n")
 
-    def note(self,freq=1,second=1,amplitude=1,precision=10):
+    def note(self,second=1,amplitude=0.1,precision=10):
         return sum(sinewave(frequency=instFreq,
                             second=second,
                             amplitude=instAmp*amplitude,
                             sample_rate=self.framerate) for instFreq,instAmp in self.instMap(precision))
+    
+    def plot(self):
+        nBins = int(math.log(22050/A0,self.fineness))
+        plt.plot(self.instDict[:,0],self.instDict[:,1])
+        plt.scatter([A0 * self.fineness ** i for i in range(0,nBins)],np.zeros(nBins),s=3,color=[1,0,0])
+        plt.show()
+
+        
 
 
 
@@ -75,16 +85,13 @@ class Instrument:
 
 
 
-violin = Instrument("inst/violin.mp3",fineness=1)
-cello = Instrument("inst/cello.mp3",fineness=1)
-voice = Instrument("inst/voice.mp3",fineness=1)
-
-violin.writeChart("linearSound/violin.csv")
-voice.writeChart("linearSound/voice.csv")
-sounddevice.play(voice.note(second=10,amplitude=1,precision=1000))
-sounddevice.wait()
+violin = Instrument("inst/violin.mp3",fineness=SEMITONE)
+violin.writeChart("violin.csv")
+violin.plot()
 
 
+#sounddevice.play(violin.note(second=5,amplitude=1,precision=2))
+#sounddevice.wait()
 
 
 
