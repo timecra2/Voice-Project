@@ -77,10 +77,12 @@ class Instrument:
 
 violin = Instrument("inst/violin.mp3",fineness=1)
 cello = Instrument("inst/cello.mp3",fineness=1)
+voice = Instrument("inst/voice.mp3",fineness=1)
 
-cello.writeChart("cello.csv")
-#sounddevice.play(cello.note(second=10,amplitude=1,precision=1000))
-#sounddevice.wait()
+violin.writeChart("linearSound/violin.csv")
+voice.writeChart("linearSound/voice.csv")
+sounddevice.play(voice.note(second=10,amplitude=1,precision=1000))
+sounddevice.wait()
 
 
 
