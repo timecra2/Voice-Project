@@ -3,6 +3,8 @@ import sounddevice
 from pydub import AudioSegment
 import numpy as np
 import math
+import torch
+
 
 # references
 # https://www.youtube.com/watch?v=DNKaIe3VTy4
@@ -10,14 +12,16 @@ import math
 
 
 def sinewave(frequency, second, sample_rate,amplitude):
-    return np.array([ (amplitude * math.sin(frequency * 2 * math.pi *(x / sample_rate))) for x in range(0,second * sample_rate)])
+    t = np.arange(0,second * sample_rate ) / sample_rate
+    return amplitude * np.sin(2 * np.pi*frequency*t)
 def decibel(x):
     return pow(10,x/10)
 
+SEMITONE = 440 * (2 ** (1/12))
 
 #(amplitude,t) -> (amplitude,f)
 class Instrument:
-    def __init__(self,filename):
+    def __init__(self,filename,fineness):
         instAudio = AudioSegment.from_file(filename)   
         instArray = np.array(instAudio.get_array_of_samples())
         instArray = instArray.reshape(-1,instAudio.channels).mean(axis=1)
@@ -31,34 +35,33 @@ class Instrument:
         instMagNyq = instMag[:len(instMag)//2]
         instMagNyq /= instMagNyq.max()
         
-        plt.plot(instFreqNyq,instMagNyq)
-        plt.show()
-
-        freqMagTuples = [(i,j) for i,j in zip(instFreqNyq,instMagNyq)]
-        freqMagDict = {}
-        for tup in freqMagTuples:
-            if round(tup[0],1) in freqMagDict:
-                freqMagDict[round(tup[0],1)] += tup[1]
-            else :
-                freqMagDict[round(tup[0],1)] = tup[1]
-        freqMagDict = dict(sorted(freqMagDict.items(),key = lambda item : item[1],reverse=True))
+       # plt.plot(instFreqNyq,instMagNyq)
+        #plt.show()  
 
         self.framerate = instAudio.frame_rate
-        self.instDict = freqMagDict
+        self.instDict = Instrument.createFreqMagDict(instFreqNyq,instMagNyq,fineness)
+
+    @staticmethod
+    def createFreqMagDict(freqs,mags,fineness):
+        bins = np.arange(0,freqs.max() + fineness,fineness)
+        binsIndice = np.digitize(freqs,bins)-1
+        binsMagnitudes = np.bincount(binsIndice, weights=mags, minlength=len(bins))
+        binsFreqency = bins[:len(binsMagnitudes)]
+        
+        return np.column_stack((binsFreqency,binsMagnitudes))
+             
 
     def instMap(self,precision):
-        instMap = []
-        for idx,key in enumerate(self.instDict):
-            if(idx >= precision):
-                break
-            instMap.append((key,self.instDict[key]))
-        return instMap
+        sorted_indices = np.argsort(self.instDict[:,-1])[::-1]
+        sorted_dict = self.instDict[sorted_indices]
+        return sorted_dict[:precision]
 
+    #deprecated
     def writeChart(self,filename):
         with open(filename,'w') as f:
-            magMax = max(self.instDict.values())
-            for idx,key  in enumerate(self.instDict):
-                f.write(f"{key} {self.instDict[key]/magMax}\n")
+            magMax = max(self.instDict[:,1])
+            for idx,tup  in enumerate(self.instDict):
+                f.write(f"{tup[0]} {tup[1]/magMax}\n")
 
     def note(self,freq=1,second=1,amplitude=1,precision=10):
         return sum(sinewave(frequency=instFreq,
@@ -72,13 +75,12 @@ class Instrument:
 
 
 
-acord = Instrument("inst/acord.mp3")
+violin = Instrument("inst/violin.mp3",fineness=1)
+cello = Instrument("inst/cello.mp3",fineness=1)
 
-
-
-sounddevice.play(acord.note(second=5,amplitude=0.1,precision=100))
-sounddevice.wait()
-acord.writeChart("acord.csv")
+cello.writeChart("cello.csv")
+#sounddevice.play(cello.note(second=10,amplitude=1,precision=1000))
+#sounddevice.wait()
 
 
 
